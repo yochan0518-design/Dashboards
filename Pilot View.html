@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pilot Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: #111;
+            color: #0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin-top: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff;
+        }
+
+        .dashboard {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+            flex-grow: 1;
+            padding: 20px;
+        }
+
+        /* Joystick Styles */
+        .joystick-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            background-color: #222;
+            border: 4px solid #555;
+            border-radius: 50%;
+            box-shadow: inset 0 0 20px #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none; /* Prevents scrolling while using joystick */
+        }
+
+        .stick {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background-color: #0ff;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #0ff;
+            cursor: pointer;
+            transition: transform 0.05s ease;
+        }
+
+        /* Button Panel Styles */
+        .button-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .dash-btn {
+            background-color: #333;
+            color: #fff;
+            border: 2px solid #555;
+            padding: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 10px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.1s;
+            box-shadow: 0 5px 0 #111;
+        }
+
+        .dash-btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 0 0 #111;
+            background-color: #0ff;
+            color: #000;
+        }
+
+        .dash-btn.active-state {
+            background-color: #f00;
+            border-color: #f00;
+            box-shadow: 0 0 15px #f00;
+        }
+
+        /* Readout Display */
+        .readout {
+            width: 100%;
+            max-width: 800px;
+            background-color: #000;
+            border: 2px solid #0f0;
+            padding: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Flight Control Systems</h1>
+
+    <div class="dashboard">
+        <div class="joystick-container" id="joystickBase">
+            <div class="stick" id="joystickStick"></div>
+        </div>
+
+        <div class="button-panel">
+            <button class="dash-btn" onclick="toggleSystem(this, 'Engine')">Engine</button>
+            <button class="dash-btn" onclick="toggleSystem(this, 'Landing Gear')">Gear</button>
+            <button class="dash-btn" onclick="toggleSystem(this, 'Shields')">Shields</button>
+            <button class="dash-btn" onclick="toggleSystem(this, 'Autopilot')">Auto</button>
+        </div>
+    </div>
+
+    <div class="readout" id="telemetry">
+        STATUS: STANDBY | X: 0 | Y: 0
+    </div>
+
+    <script>
+        // --- BUTTON LOGIC ---
+        function toggleSystem(button, systemName) {
+            button.classList.toggle('active-state');
+            const isActive = button.classList.contains('active-state');
+            const statusText = isActive ? 'ENGAGED' : 'OFF';
+            updateReadout(`SYSTEM UPDATE: ${systemName} is now ${statusText}`);
+        }
+
+        // --- JOYSTICK LOGIC ---
+        const base = document.getElementById('joystickBase');
+        const stick = document.getElementById('joystickStick');
+        const telemetry = document.getElementById('telemetry');
+
+        let isDragging = false;
+        const maxRadius = base.offsetWidth / 2 - stick.offsetWidth / 2;
+
+        // Mouse and Touch Event Listeners
+        stick.addEventListener('mousedown', startDrag);
+        stick.addEventListener('touchstart', startDrag);
+
+        window.addEventListener('mousemove', drag);
+        window.addEventListener('touchmove', drag, { passive: false });
+
+        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('touchend', endDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            e.preventDefault(); // Prevent default touch behavior
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+
+            // Get coordinates for mouse or touch
+            let clientX, clientY;
+            if (e.type === 'touchmove') {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            // Calculate center of the base
+            const rect = base.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            // Calculate distance from center
+            let deltaX = clientX - centerX;
+            let deltaY = clientY - centerY;
+            
+            // Constrain stick to the base circle
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            if (distance > maxRadius) {
+                const angle = Math.atan2(deltaY, deltaX);
+                deltaX = Math.cos(angle) * maxRadius;
+                deltaY = Math.sin(angle) * maxRadius;
+            }
+
+            // Move the stick visually
+            stick.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+
+            // Map values to a -100 to 100 scale for standard game logic
+            const normalizedX = Math.round((deltaX / maxRadius) * 100);
+            const normalizedY = Math.round((-deltaY / maxRadius) * 100); // Invert Y so up is positive
+
+            updateReadout(`FLIGHT CONTROL | Pitch (Y): ${normalizedY}% | Roll (X): ${normalizedX}%`);
+        }
+
+        function endDrag() {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            // Snap back to center
+            stick.style.transform = `translate(0px, 0px)`;
+            updateReadout(`STATUS: CENTERED | Pitch (Y): 0% | Roll (X): 0%`);
+        }
+
+        function updateReadout(message) {
+            telemetry.textContent = message;
+        }
+    </script>
+</body>
+</html>
