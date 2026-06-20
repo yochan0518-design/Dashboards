@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pilot Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: #111;
+            color: #0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin-top: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff;
+            text-align: center;
+        }
+
+        .dashboard {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            /* Allows stacking on smaller screens */
+            gap: 30px;
+            width: 100%;
+            max-width: 1000px;
+            flex-grow: 1;
+            padding: 20px;
+        }
+
+        /* --- Radar Styles --- */
+        .radar-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            background-color: #001a00;
+            border: 4px solid #0f0;
+            border-radius: 50%;
+            box-shadow: inset 0 0 20px #000, 0 0 15px #0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* Radar Crosshairs */
+        .radar-container::before,
+        .radar-container::after {
+            content: '';
+            position: absolute;
+            background: #0f0;
+            opacity: 0.3;
+        }
+
+        .radar-container::before {
+            width: 1px;
+            height: 100%;
+        }
+
+        .radar-container::after {
+            width: 100%;
+            height: 1px;
+        }
+
+        /* The sweeping scanner line */
+        .radar-sweep {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            /* Creates a gradient tail */
+            background: conic-gradient(from 0deg, transparent 70%, rgba(0, 255, 0, 0.7) 100%);
+            animation: spin 2s linear infinite;
+            display: none;
+            /* Hidden when offline */
+        }
+
+        .radar-text {
+            color: #0f0;
+            font-weight: bold;
+            z-index: 10;
+            letter-spacing: 1px;
+        }
+
+        /* Active State overrides for Radar */
+        .radar-container.active .radar-sweep {
+            display: block;
+        }
+
+        .radar-container.active .radar-text {
+            display: none;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Radar Blip Animation */
+        .blip {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background-color: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #fff, 0 0 12px #0f0;
+            opacity: 0;
+            animation: ping 2s ease-out forwards;
+        }
+
+        @keyframes ping {
+            0% {
+                opacity: 1;
+                transform: scale(0.5);
+            }
+
+            20% {
+                opacity: 1;
+                transform: scale(1.5);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
+
+
+        /* --- Joystick Styles --- */
+        .joystick-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            background-color: #222;
+            border: 4px solid #555;
+            border-radius: 50%;
+            box-shadow: inset 0 0 20px #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+        }
+
+        .stick {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background-color: #0ff;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #0ff;
+            cursor: pointer;
+            transition: transform 0.05s ease;
+        }
+
+        /* --- Button Panel Styles --- */
+        .button-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .dash-btn {
+            background-color: #333;
+            color: #fff;
+            border: 2px solid #555;
+            padding: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 10px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.1s;
+            box-shadow: 0 5px 0 #111;
+        }
+
+        .dash-btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 0 0 #111;
+            background-color: #0ff;
+            color: #000;
+        }
+
+        .dash-btn.active-state {
+            background-color: #f00;
+            border-color: #f00;
+            box-shadow: 0 0 15px #f00;
+            transform: translateY(2px);
+            box-shadow: 0 3px 0 #111;
+        }
+
+        /* --- Readout Display --- */
+        .readout {
+            width: 100%;
+            max-width: 800px;
+            background-color: #000;
+            border: 2px solid #0f0;
+            padding: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Flight Control Systems</h1>
+
+    <div class="dashboard">
+        <div class="radar-container" id="radarBase">
+            <div class="radar-sweep"></div>
+            <div class="radar-text">OFFLINE</div>
+            <div id="blipContainer"></div>
+        </div>
+
+        <div class="joystick-container" id="joystickBase">
+            <div class="stick" id="joystickStick"></div>
+        </div>
+
+        <div class="button-panel">
+            <button class="dash-btn" onclick="toggleSystem(this, 'Engine')">Engine</button>
+            <button class="dash-btn" onclick="toggleSystem(this, 'Landing Gear')">Gear</button>
+            <button class="dash-btn" onclick="toggleSystem(this, 'Shields')">Shields</button>
+            <button class="dash-btn" onclick="toggleSystem(this, 'Autopilot')">Auto</button>
+        </div>
+    </div>
+
+    <div class="readout" id="telemetry">
+        STATUS: STANDBY | X: 0 | Y: 0
+    </div>
+
+    <script>
+        // --- GLOBAL STATES ---
+        let engineOn = false;
+        let radarInterval;
+
+        // --- BUTTON & RADAR LOGIC ---
+        function toggleSystem(button, systemName) {
+            button.classList.toggle('active-state');
+            const isActive = button.classList.contains('active-state');
+            const statusText = isActive ? 'ENGAGED' : 'OFF';
+
+            // Check if the Engine button was pressed to trigger the radar
+            if (systemName === 'Engine') {
+                engineOn = isActive;
+                toggleRadar();
+            }
+
+            updateReadout(`SYSTEM UPDATE: ${systemName} is now ${statusText}`);
+        }
+
+        function toggleRadar() {
+            const radarBase = document.getElementById('radarBase');
+            const blipContainer = document.getElementById('blipContainer');
+
+            if (engineOn) {
+                radarBase.classList.add('active'); // Turns on sweep animation
+                // Spawn a new blip every 1.5 seconds
+                radarInterval = setInterval(spawnBlip, 1500);
+            } else {
+                radarBase.classList.remove('active'); // Turns off sweep
+                clearInterval(radarInterval); // Stops spawning blips
+                blipContainer.innerHTML = ''; // Clears existing blips
+            }
+        }
+
+        function spawnBlip() {
+            const blipContainer = document.getElementById('blipContainer');
+            const blip = document.createElement('div');
+            blip.className = 'blip';
+
+            // Calculate random position within the radar circle (100px radius)
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * 85; // Kept under 100 to avoid edges
+
+            // Center is (100, 100). Subtract 3 to account for half the blip's width/height
+            const x = 100 + Math.cos(angle) * radius - 3;
+            const y = 100 + Math.sin(angle) * radius - 3;
+
+            blip.style.left = `${x}px`;
+            blip.style.top = `${y}px`;
+
+            blipContainer.appendChild(blip);
+
+            // Remove the blip from the code after its animation finishes
+            setTimeout(() => {
+                if (blip.parentNode) {
+                    blip.parentNode.removeChild(blip);
+                }
+            }, 2000);
+        }
+
+
+        // --- JOYSTICK LOGIC ---
+        const base = document.getElementById('joystickBase');
+        const stick = document.getElementById('joystickStick');
+        const telemetry = document.getElementById('telemetry');
+
+        let isDragging = false;
+        const maxRadius = base.offsetWidth / 2 - stick.offsetWidth / 2;
+
+        stick.addEventListener('mousedown', startDrag);
+        stick.addEventListener('touchstart', startDrag);
+        window.addEventListener('mousemove', drag);
+        window.addEventListener('touchmove', drag, { passive: false });
+        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('touchend', endDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            e.preventDefault();
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+
+            let clientX, clientY;
+            if (e.type === 'touchmove') {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            const rect = base.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            let deltaX = clientX - centerX;
+            let deltaY = clientY - centerY;
+
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            if (distance > maxRadius) {
+                const angle = Math.atan2(deltaY, deltaX);
+                deltaX = Math.cos(angle) * maxRadius;
+                deltaY = Math.sin(angle) * maxRadius;
+            }
+
+            stick.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+
+            const normalizedX = Math.round((deltaX / maxRadius) * 100);
+            const normalizedY = Math.round((-deltaY / maxRadius) * 100);
+
+            updateReadout(`FLIGHT CONTROL | Pitch (Y): ${normalizedY}% | Roll (X): ${normalizedX}%`);
+        }
+
+        function endDrag() {
+            if (!isDragging) return;
+            isDragging = false;
+            stick.style.transform = `translate(0px, 0px)`;
+            updateReadout(`STATUS: CENTERED | Pitch (Y): 0% | Roll (X): 0%`);
+        }
+
+        function updateReadout(message) {
+            telemetry.textContent = message;
+        }
+    </script>
+</body>
+
+</html>
