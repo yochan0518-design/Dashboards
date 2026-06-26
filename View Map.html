@@ -251,6 +251,7 @@
         // --- GLOBAL STATES ---
         let engineOn = false;
         let radarInterval;
+        
 
         // --- BUTTON & RADAR LOGIC ---
         function toggleSystem(button, systemName) {
@@ -280,7 +281,7 @@
                 clearInterval(radarInterval); // Stops spawning blips
                 blipContainer.innerHTML = ''; // Clears existing blips
             }
-        }
+          /* --- Place to the left of the code --- */}
 
         function spawnBlip() {
             const blipContainer = document.getElementById('blipContainer');
